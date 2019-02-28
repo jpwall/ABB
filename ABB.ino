@@ -1,18 +1,16 @@
+#include <Bounce2.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_LIS3DH.h>
 
-int leftButton = 0;
-int rightButton = 1;
-int leftButtonState = 0;
-int lastLeftButtonState = 0;
-int rightButtonState = 0;
-int lastRightButtonState = 0;
-unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
-unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
+#define LEFT_BUTTON 5
+#define RIGHT_BUTTON 6
+#define LEFT_LED 2
+#define RIGHT_LED 3
+#define BRAKE_LED 4
 
-int leftLED = 2;
-int rightLED = 3;
-int brakeLED = 4;
+Bounce leftButton = Bounce();
+Bounce rightButton = Bounce();
+
 int leftBlinker = 0;
 int rightBlinker = 0;
 int brakeState = 0;
@@ -23,45 +21,61 @@ Adafruit_LIS3DH accel = Adafruit_LIS3DH();
 sensors_event_t accelEvent;
 
 void setup() {
-    pinMode(leftButton, INPUT_PULLUP);
-    pinMode(rightButton, INPUT_PULLUP);
-    pinMode(leftLED, OUTPUT);
-    pinMode(rightLED, OUTPUT);
-    pinMode(brakeLED, OUTPUT);
-
-    leftBlinker = HIGH;
-    lastBlinkTime = millis();
-
     Serial.begin(9600);
+    
+    pinMode(LEFT_BUTTON, INPUT_PULLUP);
+    leftButton.attach(LEFT_BUTTON);
+    leftButton.interval(5);
+    pinMode(RIGHT_BUTTON, INPUT_PULLUP);
+    rightButton.attach(RIGHT_BUTTON);
+    rightButton.interval(5);
+    pinMode(LEFT_LED, OUTPUT);
+    pinMode(RIGHT_LED, OUTPUT);
+    pinMode(BRAKE_LED, OUTPUT);
+
+    if(!accel.begin(0x18)) {   // change this to 0x19 for alternative i2c address
+        Serial.println("Couldnt start");
+        while (1);
+    }
+    Serial.println("LIS3DH found!");
+
+    accel.setRange(LIS3DH_RANGE_2_G);
 }
 
 void loop() {
-    //accel.getEvent(&accelEvent);
-    // accelEvent.acceleration.x, etc
+    // Update accelerometer
+    accel.getEvent(&accelEvent);
+    Serial.println(accelEvent.acceleration.x);
 
-    leftButtonState = debounce(leftButton, &leftButtonState, &lastLeftButtonState);
-    rightButtonState = debounce(rightButton, &rightButtonState, &lastRightButtonState);
-    
-    if(leftButtonState == HIGH){
+    // Update button states
+    leftButton.update();
+    rightButton.update();
+
+    if(leftButton.fell()){
         leftBlinker = !leftBlinker;
         if(leftBlinker == HIGH && rightBlinker == HIGH){
             rightBlinker = LOW;
         }
     }
-    if(rightButtonState == HIGH){
+    if(rightButton.fell()){
         rightBlinker = !rightBlinker;
         if(rightBlinker == HIGH && leftBlinker == HIGH){
             leftBlinker = LOW;
-        }
+        }   
     }
     
     if(leftBlinker == HIGH){
-        flashLED(leftLED);
-    } else if(rightBlinker == HIGH){
-        flashLED(rightLED);
+        flashLED(LEFT_LED);
+    } else {
+        digitalWrite(LEFT_LED, LOW);
+    }
+    if(rightBlinker == HIGH){
+        flashLED(RIGHT_LED);
+    } else {
+        digitalWrite(RIGHT_LED, LOW);
     }
 
-    digitalWrite(brakeLED, brakeState);
+    digitalWrite(BRAKE_LED, brakeState);
 }
 
 void flashLED(int LEDPin){
@@ -73,25 +87,5 @@ void flashLED(int LEDPin){
     } else if(diff >= 2 * blinkTime){
         lastBlinkTime = millis();
     }
-}
-
-void debounce(int buttonPin, int* buttonState, int* lastButtonState){
-    int reading = digitalRead(buttonPin);
-
-    if (reading != *lastButtonState) {
-        // reset the debouncing timer
-        lastDebounceTime = millis();
-    }
-
-    if ((millis() - lastDebounceTime) > debounceDelay) {
-        // whatever the reading is at, it's been there for longer than the debounce
-        // delay, so take it as the actual current state:
-
-        // if the button state has changed:
-        if (reading != *buttonState) {
-            *buttonState = reading;
-        }
-    }
-    *lastButtonState = reading;
 }
 
