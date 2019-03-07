@@ -21,8 +21,10 @@ Adafruit_LIS3DH accel = Adafruit_LIS3DH();
 sensors_event_t accelEvent;
 
 void setup() {
+    // Start serial
     Serial.begin(9600);
-    
+
+    // Initialize pins
     pinMode(LEFT_BUTTON, INPUT_PULLUP);
     leftButton.attach(LEFT_BUTTON);
     leftButton.interval(5);
@@ -33,12 +35,12 @@ void setup() {
     pinMode(RIGHT_LED, OUTPUT);
     pinMode(BRAKE_LED, OUTPUT);
 
+    // Find and initialize accelerometer
     if(!accel.begin(0x18)) {   // change this to 0x19 for alternative i2c address
         Serial.println("Couldnt start");
         while (1);
     }
     Serial.println("LIS3DH found!");
-
     accel.setRange(LIS3DH_RANGE_2_G);
 }
 
@@ -51,6 +53,7 @@ void loop() {
     leftButton.update();
     rightButton.update();
 
+    // Update blinker states
     if(leftButton.fell()){
         leftBlinker = !leftBlinker;
         if(leftBlinker == HIGH && rightBlinker == HIGH){
@@ -63,7 +66,8 @@ void loop() {
             leftBlinker = LOW;
         }   
     }
-    
+
+    // Flash blinker LEDs
     if(leftBlinker == HIGH){
         flashLED(LEFT_LED);
     } else {
@@ -75,9 +79,11 @@ void loop() {
         digitalWrite(RIGHT_LED, LOW);
     }
 
+    // Turn on/off brake LED
     digitalWrite(BRAKE_LED, brakeState);
 }
 
+// Flashes the given LED
 void flashLED(int LEDPin){
     unsigned long diff = millis() - lastBlinkTime;
     if(diff <= blinkTime){
