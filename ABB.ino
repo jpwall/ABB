@@ -8,8 +8,7 @@
 #define RIGHT_LED 3
 #define BRAKE_LED 4
 #define ACCEL_RATE 500
-#define ACCEL_READINGS 50
-#define ACCEL_NORM_SAMPLES 20
+#define ACCEL_READINGS 20
 
 Bounce leftButton = Bounce();
 Bounce rightButton = Bounce();
@@ -27,7 +26,7 @@ Adafruit_LIS3DH accel = Adafruit_LIS3DH();
 sensors_event_t accelEvent;
 
 void setup() {
-    // Start serial
+    // Start serial comms
     Serial.begin(9600);
 
     // Initialize pins
@@ -51,19 +50,14 @@ void setup() {
 }
 
 void loop() {
-    // Update accelerometer
+    // Update accelerometer at certain rate
     if(millis() - lastAccelTime > ACCEL_RATE){
         accel.getEvent(&accelEvent);
         lastAccelTime = millis();
         addReading(accelEvent.acceleration.x);
-        //Serial.println(accelEvent.acceleration.x);
     }
-
+    // Update normal based on readings buffer
     updateNormal();
-
-    Serial.print(accelEvent.acceleration.x);
-    Serial.print(',');
-    Serial.println(normal);
     
     // Update button states
     leftButton.update();
@@ -95,6 +89,7 @@ void loop() {
         digitalWrite(RIGHT_LED, LOW);
     }
 
+    // Update brake state
     brakeState = HIGH;
     for(int i = 0; i < 2; i++){
         if(readings[i] > normal - 0.1){
@@ -103,6 +98,11 @@ void loop() {
     }
     // Turn on/off brake LED
     digitalWrite(BRAKE_LED, brakeState);
+
+    // Plot acceleration and normal data
+    Serial.print(accelEvent.acceleration.x);
+    Serial.print(',');
+    Serial.println(normal);
 }
 
 // Flashes the given LED
@@ -117,6 +117,7 @@ void flashLED(int LEDPin){
     }
 }
 
+// Adds a new accelerometer reading to the readings buffer
 void addReading(float reading){
     for(int i = 1; i < ACCEL_READINGS; i++){
         readings[i] = readings[i - 1];
@@ -124,11 +125,12 @@ void addReading(float reading){
     readings[0] = reading;
 }
 
+// Checks for a new normal acceleration value
 void updateNormal(){
     float min = readings[0];
     float max = readings[0];
     float avg = readings[0];
-    for(int i = 1; i < ACCEL_NORM_SAMPLES; i++){
+    for(int i = 1; i < ACCEL_READINGS; i++){
         if(readings[i] < min){
             min = readings[i];
         } else if (readings[i] > max){
@@ -136,7 +138,7 @@ void updateNormal(){
         }
         avg += readings[i];
     }
-    avg /= ACCEL_NORM_SAMPLES;
+    avg /= ACCEL_READINGS;
     if(abs(max - min) < 0.1){
         normal = avg;
     }
