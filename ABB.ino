@@ -7,6 +7,9 @@
 #define LEFT_LED 2
 #define RIGHT_LED 3
 #define BRAKE_LED 4
+#define ACCEL_RATE 500
+#define ACCEL_READINGS 50
+#define ACCEL_NORM_SAMPLES 20
 
 Bounce leftButton = Bounce();
 Bounce rightButton = Bounce();
@@ -16,6 +19,9 @@ int rightBlinker = 0;
 int brakeState = 0;
 unsigned long blinkTime = 350;
 unsigned long lastBlinkTime = 0;
+unsigned long lastAccelTime = 0;
+float readings[ACCEL_READINGS];
+float normal = 0.0f;
 
 Adafruit_LIS3DH accel = Adafruit_LIS3DH();
 sensors_event_t accelEvent;
@@ -46,9 +52,19 @@ void setup() {
 
 void loop() {
     // Update accelerometer
-    accel.getEvent(&accelEvent);
-    Serial.println(accelEvent.acceleration.x);
+    if(millis() - lastAccelTime > ACCEL_RATE){
+        accel.getEvent(&accelEvent);
+        lastAccelTime = millis();
+        addReading(accelEvent.acceleration.x);
+        //Serial.println(accelEvent.acceleration.x);
+    }
 
+    updateNormal();
+
+    Serial.print(accelEvent.acceleration.x);
+    Serial.print(',');
+    Serial.println(normal);
+    
     // Update button states
     leftButton.update();
     rightButton.update();
@@ -79,6 +95,12 @@ void loop() {
         digitalWrite(RIGHT_LED, LOW);
     }
 
+    brakeState = HIGH;
+    for(int i = 0; i < 2; i++){
+        if(readings[i] > normal - 0.1){
+            brakeState = LOW;
+        }
+    }
     // Turn on/off brake LED
     digitalWrite(BRAKE_LED, brakeState);
 }
@@ -92,6 +114,31 @@ void flashLED(int LEDPin){
         digitalWrite(LEDPin, LOW);
     } else if(diff >= 2 * blinkTime){
         lastBlinkTime = millis();
+    }
+}
+
+void addReading(float reading){
+    for(int i = 1; i < ACCEL_READINGS; i++){
+        readings[i] = readings[i - 1];
+    }
+    readings[0] = reading;
+}
+
+void updateNormal(){
+    float min = readings[0];
+    float max = readings[0];
+    float avg = readings[0];
+    for(int i = 1; i < ACCEL_NORM_SAMPLES; i++){
+        if(readings[i] < min){
+            min = readings[i];
+        } else if (readings[i] > max){
+            max = readings[i];
+        }
+        avg += readings[i];
+    }
+    avg /= ACCEL_NORM_SAMPLES;
+    if(abs(max - min) < 0.1){
+        normal = avg;
     }
 }
 
