@@ -126,6 +126,7 @@ void addReading(float reading){
 }
 
 // Checks for a new normal acceleration value
+// Only updates normal once most recent buffer is stable
 void updateNormal(){
     float min = readings[0];
     float max = readings[0];
