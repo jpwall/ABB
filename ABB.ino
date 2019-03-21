@@ -26,9 +26,6 @@ Adafruit_LIS3DH accel = Adafruit_LIS3DH();
 sensors_event_t accelEvent;
 
 void setup() {
-    // Start serial comms
-    Serial.begin(9600);
-
     // Initialize pins
     pinMode(LEFT_BUTTON, INPUT_PULLUP);
     leftButton.attach(LEFT_BUTTON);
@@ -42,10 +39,9 @@ void setup() {
 
     // Find and initialize accelerometer
     if(!accel.begin(0x18)) {   // change this to 0x19 for alternative i2c address
-        Serial.println("Couldnt start");
+        // Add error/status led or something?
         while (1);
     }
-    Serial.println("LIS3DH found!");
     accel.setRange(LIS3DH_RANGE_2_G);
 }
 
@@ -54,7 +50,7 @@ void loop() {
     if(millis() - lastAccelTime > ACCEL_RATE){
         accel.getEvent(&accelEvent);
         lastAccelTime = millis();
-        addReading(accelEvent.acceleration.x);
+        addReading(accelEvent.acceleration.y);
     }
     // Update normal based on readings buffer
     updateNormal();
@@ -98,11 +94,6 @@ void loop() {
     }
     // Turn on/off brake LED
     digitalWrite(BRAKE_LED, brakeState);
-
-    // Plot acceleration and normal data
-    Serial.print(accelEvent.acceleration.x);
-    Serial.print(',');
-    Serial.println(normal);
 }
 
 // Flashes the given LED
